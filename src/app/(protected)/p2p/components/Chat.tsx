@@ -5,6 +5,7 @@ import { User, MoreVertical, SendHorizontal, Paperclip } from "lucide-react";
 import { useUser } from "@/features/user/presentation/context/UserContext";
 import { useNotifications } from "@/features/notifications";
 import { useChatSocket } from "@/features/chat/hooks/useChatSocket";
+import { clearUnreadMessages, recordUnreadMessage } from "@/features/chat/utils/unreadMessages";
 import { Message } from "@/features/chat/models/message";
 import { ChatError } from "@/features/chat/types/chat-events.types";
 import { DEMO_MODE } from "@/config/demo-mode";
@@ -157,6 +158,9 @@ export const Chat = ({ orderId, chatName = "Merchant Chat", counterpartyProfileI
     const handleIncomingMessage = useCallback(
         (message: Message) => {
             mergeMessages(message, isNearBottom());
+            if (currentUser && message.senderId !== currentUser.userId && document.hidden) {
+                recordUnreadMessage(currentUser.userId, orderId, message.messageId);
+            }
             if (currentUser && message.senderId !== currentUser.userId) {
                 notify({
                     type: "info",
@@ -166,7 +170,7 @@ export const Chat = ({ orderId, chatName = "Merchant Chat", counterpartyProfileI
                 });
             }
         },
-        [currentUser, isNearBottom, mergeMessages, notify],
+        [currentUser, isNearBottom, mergeMessages, notify, orderId],
     );
 
     const handleMessageRead = useCallback((event: { orderId: string; messageId: string; readerId: string; readAt: string }) => {
@@ -186,6 +190,11 @@ export const Chat = ({ orderId, chatName = "Merchant Chat", counterpartyProfileI
         onMessageRead: handleMessageRead,
         onError: handleSocketError,
     });
+
+    // Opening a conversation marks only this user's messages for this order as read.
+    useEffect(() => {
+        if (currentUser) clearUnreadMessages(currentUser.userId, orderId);
+    }, [currentUser?.userId, orderId]);
 
     useEffect(() => {
         if (!currentUser) return;
@@ -417,6 +426,11 @@ export const Chat = ({ orderId, chatName = "Merchant Chat", counterpartyProfileI
                 Sent messages are currently immutable and remain in the order history. To correct a message, send a follow-up; LocalSettle does not silently edit or remove chat records.
             </aside>
             
+            {!isDemo && connectionStatus !== "connected" && (
+                <p role="status" aria-live="polite" className="px-6 py-2 text-xs text-amber-300 bg-amber-950/30">
+                    {connectionLabel}. Messages are not queued while offline; retry any failed message after reconnecting.
+                </p>
+            )}
             {/* Chat Messages Body */}
             <main ref={messagesListRef} onScroll={(event) => {
                 const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
@@ -471,7 +485,7 @@ export const Chat = ({ orderId, chatName = "Merchant Chat", counterpartyProfileI
                                     )}
                                 </span>
                                 {isOwnMessage && msg.deliveryStatus === "failed" && msg.clientMessageId && (
-                                    <button type="button" onClick={() => void retryMessage(msg)} className="text-[10px] text-[#55D6BE] underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#55D6BE]">
+                                    <button type="button" onClick={() => void retryMessage(msg)} disabled={connectionStatus !== "connected"} className="text-[10px] text-[#55D6BE] underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#55D6BE] disabled:opacity-50">
                                         Retry safely
                                     </button>
                                 )}
