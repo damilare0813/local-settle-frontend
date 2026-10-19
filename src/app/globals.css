@@ -44,3 +44,31 @@ button:disabled * {
 .toast-enter {
   animation: toast-enter 0.2s ease-out;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+:where(a[href], button, input, select, textarea, [role="button"], [role="tab"], [role="menuitem"], [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+[role="tab"][aria-selected="true"] {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.35em;
+}
+
+@media (forced-colors: active) {
+  :where(a[href], button, input, select, textarea, [role="button"], [role="tab"], [role="menuitem"], [tabindex]):focus-visible {
+    outline-color: Highlight;
+  }
+}
